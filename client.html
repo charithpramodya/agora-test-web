@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title></title>
+
+	<link rel="stylesheet" href="vendor/bootstrap.min.css">
+	<script src="AgoraRTCSDK-2.6.1.js"></script>
+	<script src="vendor/jquery.js"></script>
+
+</head>
+<body>
+
+
+
+	<div id="div_join" class="panel panel-default">
+		<div class="panel-body">
+			Channel: <input id="channel" type="text" value="1000" size="4"></input>
+			<button id="join" class="btn btn-primary" onclick="join()">Join</button>
+			<button id="leave" class="btn btn-danger" onclick="leave()">Leave</button>
+			
+		</div>
+	</div>
+
+
+	<div id="video" class="row">
+          <div id="agora_remote" class="col-md-4 col-md-offset-4 well" style="width:350px;height:287px;display:inline-block;padding:10px;"></div>
+    </div>
+
+
+	<script type="text/javascript">
+
+		var client, localStream;
+
+
+
+		
+
+		function join(){
+			var appId="15a6752de8f44889b8dd5d33be8a8e45"
+
+			//client initializatio
+			var client = AgoraRTC.createClient({mode: 'live', codec: "h264"});
+			client.init(appId, function () {
+				console.log("AgoraRTC client initialized");
+
+				//joining to a client
+				client.join(null, channel.value, null, function(uid) {
+					console.log("User " + uid + " join channel successfully");
+
+				}, function(err) {
+					console.log("Join channel failed", err);
+				});
+
+			}, function (err) {
+				console.log("AgoraRTC client init failed", err);
+			});
+
+			channelKey = "";
+			client.on('error', function(err) {
+				console.log("Got error msg:", err.reason);
+				if (err.reason === 'DYNAMIC_KEY_TIMEOUT') {
+					client.renewChannelKey(channelKey, function(){
+						console.log("Renew channel key successfully");
+					}, function(err){
+						console.log("Renew channel key failed: ", err);
+					});
+				}
+			});
+
+			client.on('stream-added', function (evt) {
+				var stream = evt.stream;
+				console.log("New stream added: " + stream.getId());
+				console.log("Subscribe ", stream);
+				client.subscribe(stream, function (err) {
+					console.log("Subscribe stream failed", err);
+				});
+			});
+
+			client.on('stream-subscribed', function (evt) {
+				var stream = evt.stream;
+				console.log("Subscribe remote stream successfully: " + stream.getId());
+				
+				stream.play('agora_remote');
+			});
+
+			client.on('stream-removed', function (evt) {
+				var stream = evt.stream;
+				stream.stop();
+				$('#agora_remote' + stream.getId()).remove();
+				console.log("Remote stream is removed " + stream.getId());
+			});
+
+			client.on('peer-leave', function (evt) {
+				var stream = evt.stream;
+				if (stream) {
+					stream.stop();
+					$('#agora_remote' + stream.getId()).remove();
+					console.log(evt.uid + " leaved from this channel");
+				}
+			});
+		}
+
+
+
+		function leave() {
+			document.getElementById("leave").disabled = true;
+			client.leave(function () {
+				console.log("Leavel channel successfully");
+			}, function (err) {
+				console.log("Leave channel failed");
+			});
+		}
+
+		function publish() {
+			document.getElementById("publish").disabled = true;
+			document.getElementById("unpublish").disabled = false;
+			client.publish(localStream, function (err) {
+				console.log("Publish local stream error: " + err);
+			});
+		}
+
+		function unpublish() {
+			document.getElementById("publish").disabled = false;
+			document.getElementById("unpublish").disabled = true;
+			client.unpublish(localStream, function (err) {
+				console.log("Unpublish local stream failed" + err);
+			});
+		}
+
+
+		
+
+
+</script>
+
+</body>
+</html>
